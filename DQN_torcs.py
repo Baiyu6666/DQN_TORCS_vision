@@ -1,4 +1,4 @@
-from gym_torcs import TorcsEnv
+from multigym_torcs import TorcsEnv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,8 +10,8 @@ import math
 import os, time
 
 manul = False
-learn = not True
-data_generate = True
+learn = True
+data_generate = False
 online_draw = False
 method_list = [
                 'nature_DQN',
@@ -66,7 +66,7 @@ EXTRA_R_GAMMA = 0.95
 #pygame.init()
 #screen = pygame.display.set_mode((600, 400))
 #pygame.display.set_caption('pygame event')
-env = TorcsEnv(vision=False, throttle=True, gear_change=False)
+env = TorcsEnv(port=3100, text_mode=not False, vision=False, throttle=True, gear_change=False)
 env.reset()
 # if online_draw:
 #     vis = visdom.Visdom(env='torcs')
@@ -220,10 +220,9 @@ for method in method_list[0]:
                 #         a = 3
                 a_drive = ACTION[a]
 
-                s_, r, done = env.step(a_drive)
-                if done:
-                    r = -200
+                s_, r, done, r1, r2, r3 = env.step(a_drive)
                 r_sum += r
+                #print('%.3f' %r)
                 s_ = np.hstack(
                     (s_.angle, s_.track, s_.trackPos, s_.speedX, s_.speedY, s_.speedZ, s_.wheelSpinVel / 100.0, s_.rpm))
                 dqn.store_memory(s, a, r, s_, i)
