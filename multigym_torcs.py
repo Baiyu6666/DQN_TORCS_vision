@@ -201,13 +201,11 @@ class TorcsEnv:
         self.time_step += 1
         return self.get_obs(), reward, client.R.d['meta'], reward_long, reward_late, reward_track
 
-    def reset(self, relaunch=True):
+    def reset(self, relaunch=False):
         #print("Reset")
         self.reset_count += 1
-        if np.mod(self.reset_count, 50) == 0:
+        if np.mod(self.reset_count, 10) == 0:
             relaunch = True
-        else:
-            relaunch = False
 
         self.time_step = 0
 
@@ -250,9 +248,9 @@ class TorcsEnv:
        #print("relaunch torcs")
        
        self.torcs_proc.terminate()
-       time.sleep(0.5)
+       time.sleep(1.5)
        self.start_torcs_process()
-       time.sleep(0.5)
+       time.sleep(1.5)
 
     def agent_to_torcs(self, u):
         torcs_action = {'steer': u[0]}

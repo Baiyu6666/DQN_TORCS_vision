@@ -27,7 +27,6 @@ double_net = False
 load_data = False
 prepro_data = False
 extra_reward = False
-
 data_regenerate = False
 
 N_ACTIONS = 5
@@ -67,7 +66,7 @@ EXTRA_R_GAMMA = 0.95
 #screen = pygame.display.set_mode((600, 400))
 #pygame.display.set_caption('pygame event')
 env = TorcsEnv(port=3100, text_mode=not False, vision=False, throttle=True, gear_change=False)
-env.reset()
+
 # if online_draw:
 #     vis = visdom.Visdom(env='torcs')
 
@@ -187,6 +186,7 @@ for method in method_list[0]:
                 print('PreLearning end')
 
         for i in trange(EXP_MAX):
+
             s = env.reset()
             s = np.hstack(
                 (s.angle, s.track, s.trackPos, s.speedX, s.speedY, s.speedZ, s.wheelSpinVel / 100.0, s.rpm))
@@ -198,6 +198,7 @@ for method in method_list[0]:
                 EPSILON = 0.01
 
             for step in range(EPI_MAX):
+                time_new = time.time()
                 if not manul:
                     a = dqn.choose_action(s)
                 else:
@@ -222,6 +223,8 @@ for method in method_list[0]:
 
                 s_, r, done, r1, r2, r3 = env.step(a_drive)
                 r_sum += r
+                if step>0:
+                    time.sleep(0.05)
                 #print('%.3f' %r)
                 s_ = np.hstack(
                     (s_.angle, s_.track, s_.trackPos, s_.speedX, s_.speedY, s_.speedZ, s_.wheelSpinVel / 100.0, s_.rpm))
@@ -247,6 +250,7 @@ for method in method_list[0]:
                     vis.line(X=torch.Tensor([step]), Y=torch.Tensor([r]), win='r',
                          update='append' if step > 0 else None,  opts={'title': 'r'})
                 s = s_
+                #print("%.3f" %(time.time()-time_new))
 
         dqn.save_model(run)
     if not data_regenerate and os.path.exists('data/' + method + '/r_list.csv'):

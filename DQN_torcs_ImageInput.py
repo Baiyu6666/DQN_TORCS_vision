@@ -6,12 +6,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 from tqdm import tqdm, trange
-import visdom
+#import visdom
 import math
 import os
 from SumTree import Memory
 from CNN import CNN
 from Utils import *
+
+
 import argparse
 from time import time, sleep
 
@@ -50,7 +52,7 @@ method = 'PDD'
 para = 'fix bug'
 retrain = True
 learn = True
-prioritized = True
+prioritized = not True
 
 #Function
 data_generate = False
@@ -182,6 +184,7 @@ class DQN():
         self.memory_counter += 1
 
     def learn(self, prepro=False):
+        rate = 0
         if self.learn_counter % LEARN_FREQUENCY == 0:
             self.tar_net.load_state_dict(self.eval_net.state_dict())
         self.learn_counter += 1
@@ -196,7 +199,7 @@ class DQN():
             b_isdemo = torch.Tensor(b_isdemo).to(device)
 
         else:
-            sample = np.random.choice(memory_MAX*(1-prepro)+N_DATA*prepro, BATCH_SIZE)
+            sample = np.random.choice(min(self.memory_counter, memory_MAX)*(1-prepro)+N_DATA*prepro, BATCH_SIZE)
             b = self.memory[sample, :]
 
 
@@ -224,7 +227,9 @@ class DQN():
             abs_errors = abs(q_eval.detach().cpu() - q_tar.detach().cpu())
 
             #print("learn")
+            time_new = time()
             self.memory.batch_update(tree_idx, abs_errors)
+            #print('update time:%.3f' % (time() - time_new))
             q_eval *= IS ** 0.5
             q_tar *= IS ** 0.5
             if supervised:
@@ -233,6 +238,7 @@ class DQN():
             loss_sup = loss_sup.sum() / BATCH_SIZE * lamda
         else:
             loss_sup = torch.Tensor([0]).sum()
+        time_new = time()
 
         loss_td = self.loss_fun(q_eval, q_tar)
         #print('TD:%.4f, SUP:%.4f' %(loss_td, loss_sup))
@@ -240,7 +246,7 @@ class DQN():
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
+        #print('NN time:%.3f' % (time() - time_new))
         if self.learn_counter % 2 == 0 and online_draw:
                 vis.line(X=torch.Tensor
                 ([self.learn_counter]), Y=torch.stack((loss_sup.cpu(), loss_td.cpu())).reshape(1, 2),
@@ -299,7 +305,7 @@ args = args_parser()
 env = TorcsEnv(port=args.p, text_mode=False, vision=True, throttle=False, gear_change=False)
 
 #env = TorcsEnv(vision=True, throttle=True, gear_change=False)
-vis = visdom.Visdom(env='torcs:' + str(args.p))
+#vis = visdom.Visdom(env='torcs:' + str(args.p))
 console = Console()
 
 if a_replay:
@@ -327,7 +333,6 @@ for k in range(1):
         dqn.load_model()
     if with_data:
         dqn.load_memory(True)
-
 
     while (dqn.memory_counter < memory_learn) and learn:
         EPSILON = 0.5
@@ -447,7 +452,7 @@ for k in range(1):
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
-            print('model time:%.3f' % (time() - time_new))
+            #print('model time:%.3f' % (time() - time_new))
             if record:
                 print(step, s_low_)
             if evaluation:
@@ -508,7 +513,7 @@ for k in range(1):
                 if a_record:
                     np.savetxt('data/memory/a_list.csv', np.array(a_list), delimiter=',')
                     print('a_list saved')
-                print('\n\nep:%s  av-reward:%.2f  step:%s'%(i, r_sum/step, step))
+                print('\n\nep:%s  av-reward:%.3f  step:%s'%(i, r_sum/step, step))
                 #print('\n---------------------------\nstep', step, 'reward', r_sum/step, 'memory', dqn.memory_counter)
                 if online_draw:
                     vis.line(X=torch.Tensor([i]), Y=torch.Tensor([(r_sum)/step]), win='r_average',
@@ -524,7 +529,7 @@ for k in range(1):
             s_img = s_img_.copy()
             s_low = s_low_
             #print('time:%.3f' %(time()-time_new))
-            print('step:%s  reward:%.2f  momery:%s  time:%.3f' % (step, r, dqn.memory_counter, time()-time_new))
+            #print('step:%s  reward:%.2f  momery:%s  time:%.3f' % (step, r, dqn.memory_counter, time()-time_new))
             #print(step_loop.set_description('step:%s  reward:%.2f' % (step, r))
             #print("data", dqn.memory_counter, 'reward', r)
 

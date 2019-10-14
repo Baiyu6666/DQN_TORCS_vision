@@ -1,1 +1,12 @@
 vtorcs-RL-color/
+backup/
+data_old/
+data/
+DDPG_Torcs_PyTorch-master/
+doom_dqfd-master/
+DQfD-master/
+figure/
+torcs-a3c-master/
+logs/
+.idea/
+__pycache__/

@@ -10,7 +10,7 @@ import math
 
 env = gym.make('MountainCar-v0')
 env = env.unwrapped
-env.render()
+#env.render()
 
 
 N_ACTIONS = env.action_space.n
