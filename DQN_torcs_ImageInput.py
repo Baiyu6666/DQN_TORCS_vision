@@ -80,8 +80,7 @@ LR = 0.0003
 GAMMA = 0.9
 MAX_EPISODE = 700
 MAX_STEP = 1000
-e = 'constant'
-
+EPSILON = 0.1
 
 #Data
 with_data = not True
@@ -128,6 +127,7 @@ class DQN():
     def adjust_learning_rate(self, optimizer, epoch):
         """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
         lr = 0.00025 - 1.7 * 10**(-7) * epoch
+        lr *= 2
         if self.learn_counter % 2 == 0 and online_draw:
             vis.line(X=torch.Tensor([epoch]), Y=torch.Tensor([lr]), win='lr',
                      update='append' ,
@@ -335,7 +335,6 @@ for k in range(1):
         dqn.load_memory(True)
 
     while (dqn.memory_counter < memory_learn) and learn:
-        EPSILON = 0.5
         s_img = np.zeros((IMAGE_NUM, 64, 64))
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
         s = env.reset()
@@ -396,27 +395,6 @@ for k in range(1):
         ratio_sum = 0
         track_sum = 0
         angle_sum = 0
-
-        if learn:
-            if dqn.learn_counter == 0:
-                if with_data or not retrain:
-                    EPSILON = 0.1
-                else:
-                    EPSILON = 0.1
-            else:
-                if e == 'log':
-                    EPSILON = 1 / 2 / math.log(i+2)
-                elif e == 'power':
-                    EPSILON = 0.99**i
-                elif e == 'linear':
-                    EPSILON = 1 - 0.0045*i
-                elif e == 'constant':
-                    EPSILON = 0.1
-                EPSILON = max(0.05, EPSILON)
-        else:
-            EPSILON = 0.05
-
-        print('e=' + str(EPSILON))
 
         transitions = []
         a_drive = [0, 0, 0]
@@ -513,7 +491,7 @@ for k in range(1):
                 if a_record:
                     np.savetxt('data/memory/a_list.csv', np.array(a_list), delimiter=',')
                     print('a_list saved')
-                print('\n\nep:%s  av-reward:%.3f  step:%s'%(i, r_sum/step, step))
+                print('\n\nep:%s  av-reward:%.3f  step:%s  memory:%s' %(i, r_sum/step, step, dqn.memory_counter))
                 #print('\n---------------------------\nstep', step, 'reward', r_sum/step, 'memory', dqn.memory_counter)
                 if online_draw:
                     vis.line(X=torch.Tensor([i]), Y=torch.Tensor([(r_sum)/step]), win='r_average',

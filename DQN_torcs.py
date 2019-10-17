@@ -8,6 +8,8 @@ from tqdm import trange
 import pygame
 import math
 import os, time
+from SumTree import Memory
+device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
 
 manul = False
 learn = True
@@ -23,11 +25,12 @@ method_list = [
                 'reward_data_DQN_0.98'
                ]
 
-double_net = False
+
 load_data = False
 prepro_data = False
 extra_reward = False
 data_regenerate = False
+prioritized = not True
 
 N_ACTIONS = 5
 N_STATE = 29
@@ -91,10 +94,14 @@ class DQN():
         self.eval_net, self.tar_net = Net(N_STATE, HIDDEN_DIM, N_ACTIONS), Net(N_STATE, HIDDEN_DIM, N_ACTIONS)
         self.memory_counter = 0
         self.learn_counter = 0
-        self.memory = np.zeros([memory_MAX, N_STATE * 2 +2])
+        if prioritized:
+            self.memory = Memory(memory_MAX, 0)
+        else:
+            self.memory = np.zeros([memory_MAX, N_STATE * 2 +2])
         self.data_memory = N_DATA
         self.loss_fun = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=LR)
+
 
     def choose_action(self, s):
         s = torch.FloatTensor(s)
@@ -109,11 +116,15 @@ class DQN():
         return action
 
     def store_memory(self, s, a, r, s_, i):
-        self.data_memory = int(N_DATA * DATA_GAMMA**i)
         transaction = np.hstack((s, a, r, s_))
-        index = self.memory_counter % memory_MAX + \
-                self.data_memory * load_data * (self.memory_counter % memory_MAX == 0)
-        self.memory[index, :] = transaction
+        if prioritized:
+            self.memory.store(transaction)
+        else:
+            self.data_memory = int(N_DATA * DATA_GAMMA**i)
+            transaction = np.hstack((s, a, r, s_))
+            index = self.memory_counter % memory_MAX + \
+                    self.data_memory * load_data * (self.memory_counter % memory_MAX == 0)
+            self.memory[index, :] = transaction
         self.memory_counter += 1
 
     def save_memory(self):
@@ -127,24 +138,46 @@ class DQN():
         if self.learn_counter % LEARN_FREQUENCY == 0:
             self.tar_net.load_state_dict(self.eval_net.state_dict())
         self.learn_counter += 1
-        if prepro:
-            sample = np.random.choice(N_DATA, BATCH_SIZE)
+        if prioritized:
+            tree_idx, b, IS, b_isdemo = self.memory.sample(BATCH_SIZE, min(memory_MAX, self.memory_counter))
+            rate = b_isdemo.sum() / BATCH_SIZE
+            if self.learn_counter % 2 == 0 and online_draw and with_data:
+                vis.line(X=torch.Tensor([self.learn_counter]), Y=rate.reshape(1, 1), win='Data use rate',
+                         update='append', opts={'title': 'ratio'})
+
+            IS = torch.Tensor(IS).to(device)
+            b_isdemo = torch.Tensor(b_isdemo).to(device)
+
         else:
-            sample = np.random.choice(memory_MAX, BATCH_SIZE)
-        b = self.memory[sample, :]
+            sample = np.random.choice(min(self.memory_counter, memory_MAX) * (1 - prepro) + N_DATA * prepro, BATCH_SIZE)
+            b = self.memory[sample, :]
+
+
+        # if prepro:
+        #     sample = np.random.choice(N_DATA, BATCH_SIZE)
+        # else:
+        #     sample = np.random.choice(memory_MAX, BATCH_SIZE)
+
         b_s = torch.FloatTensor(b[:, :N_STATE])
         b_a = torch.LongTensor(b[:, N_STATE: N_STATE + 1])
         b_r = torch.FloatTensor(b[:, N_STATE + 1: N_STATE + 2])
         b_s_ = torch.FloatTensor(b[:, N_STATE + 2:])
         q_eval = self.eval_net.forward(b_s).gather(1, b_a)
-        if double_net:
-            eval_value = self.eval_net.forward(b_s_).detach()
-            a_ = torch.max(eval_value, -1)[1].data.reshape(-1, 1)
-            tar_value = self.tar_net(b_s_).detach().gather(1, a_)
-            q_tar = b_r + GAMMA * tar_value
-        else:
-            q_next = self.tar_net.forward(b_s_).detach()
-            q_tar = b_r + GAMMA * q_next.max(1)[0].reshape(-1, 1)
+
+        eval_value = self.eval_net.forward(b_s_).detach()
+        a_ = torch.max(eval_value, -1)[1].data.reshape(-1, 1)
+        tar_value = self.tar_net(b_s_).detach().gather(1, a_)
+        q_tar = b_r + GAMMA * tar_value
+        if prioritized:
+            abs_errors = abs(q_eval.detach().cpu() - q_tar.detach().cpu())
+
+            #print("learn")
+            time_new = time.time()
+            self.memory.batch_update(tree_idx, abs_errors)
+            #print('update time:%.3f' % (time() - time_new))
+            q_eval *= IS ** 0.5
+            q_tar *= IS ** 0.5
+
         if extra_reward:
             b_r_e = [int(sample[k] <= self.data_memory) * EXTRA_R * EXTRA_R_GAMMA**i for k in range(BATCH_SIZE)]
             q_tar += torch.Tensor(b_r_e).reshape(-1, 1)
@@ -170,8 +203,6 @@ class DQN():
 print("Start")
 
 for method in method_list[0]:
-
-
     r_list = np.zeros([N_RUN, EXP_MAX])
     for run in range(N_RUN):
 
@@ -240,7 +271,7 @@ for method in method_list[0]:
 
                 if done:
                     r_list[run][i] = r_sum/step
-                    print('step =', step, 'Run=', run+1, 'Method=', method)
+                    print('step =', step, 'Run=', run+1, 'Method=', method, 'Memory=', dqn.memory_counter)
                     if online_draw:
                         vis.line(X=torch.Tensor([i]), Y=torch.Tensor([r_sum/step]), win='r_average',
                                  update='append' if dqn.learn_counter > 0 else None,  opts={'title': 'R_average'})
