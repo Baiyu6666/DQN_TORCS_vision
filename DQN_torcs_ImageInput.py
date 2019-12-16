@@ -77,6 +77,7 @@ LEARN_FREQUENCY = 500
 SAVE_FREQUENCY = 2000
 BATCH_SIZE = 32
 LR = 0.0003
+LR_delta = 1.7 * 10**(-7)
 GAMMA = 0.9
 MAX_EPISODE = 700
 MAX_STEP = 1000
@@ -126,7 +127,7 @@ class DQN():
 
     def adjust_learning_rate(self, optimizer, epoch):
         """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-        lr = 0.00025 - 1.7 * 10**(-7) * epoch
+        lr = LR - LR_delta * epoch
         lr *= 2
         if self.learn_counter % 2 == 0 and online_draw:
             vis.line(X=torch.Tensor([epoch]), Y=torch.Tensor([lr]), win='lr',
@@ -201,7 +202,6 @@ class DQN():
         else:
             sample = np.random.choice(min(self.memory_counter, memory_MAX)*(1-prepro)+N_DATA*prepro, BATCH_SIZE)
             b = self.memory[sample, :]
-
 
         b_s_img = torch.FloatTensor(b[:, :N_STATE_IMG]).reshape(BATCH_SIZE, IMAGE_NUM, 64, 64).to(device)
         b_s_low = torch.FloatTensor(b[:, N_STATE_IMG: N_STATE_IMG + N_STATE_LOW]).to(device)
