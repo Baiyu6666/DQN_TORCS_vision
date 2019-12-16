@@ -49,7 +49,7 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'fix bug'
+para = 'final'
 retrain = True
 learn = True
 prioritized = not True
@@ -357,7 +357,7 @@ for k in range(1):
                     dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
 
             a_drive = ACTION[a]
-            s_, r, done, r1, r2, r3 = env.step(a_drive)
+            s_, r, done = env.step(a_drive)
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
             img_ = preprocess(s_)
@@ -425,7 +425,7 @@ for k in range(1):
             # a_delta = min(abs(ACTION[a][0] - a_drive[0]), 0.08) * (ACTION[a][0] > a_drive[0])
             # a_drive = a_drive + a_delta
             a_drive = ACTION[a]
-            s_, r, done, r1, r2, r3 = env.step(a_drive)
+            s_, r, done = env.step(a_drive)
 
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
             img_ = preprocess(s_)

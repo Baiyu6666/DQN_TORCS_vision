@@ -158,11 +158,11 @@ class TorcsEnv:
 
         progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos'])
 
-        reward_long = sp *np.cos(obs['angle']) / self.default_speed
-        reward_late = - np.abs(sp*np.sin(obs['angle'])) / self.default_speed
-        reward_track = - sp * np.abs(obs['trackPos']) / self.default_speed
+        reward_long = np.cos(obs['angle'])
+        reward_late = - np.abs(sp*np.sin(obs['angle']))
+        reward_track = -np.abs(obs['trackPos'])
         #print(reward_track)
-        reward = reward_long + reward_late + reward_track
+        reward = reward_long + reward_track
 
         # collision detection
         if obs['damage'] - obs_pre['damage'] > 0:
@@ -175,13 +175,13 @@ class TorcsEnv:
         
         if (abs(track.any()) > 1 or abs(trackPos) > 1):  # Episode is terminated if the car is out of track
            print('Out of Track')
-           reward = -1
+           reward += -2
            #episode_terminate = True
            client.R.d['meta'] = True
 
         if self.terminal_judge_start < self.time_step: # Episode terminates if the progress of agent is small
            if progress < (self.termination_limit_progress / self.default_speed):
-               reward = -1
+               reward += -2
                print("No progress")
                episode_terminate = True
                #TODO check if we really need this one
@@ -199,7 +199,7 @@ class TorcsEnv:
             client.respond_to_server()
 
         self.time_step += 1
-        return self.get_obs(), reward, client.R.d['meta'], reward_long, reward_late, reward_track
+        return self.get_obs(), reward, client.R.d['meta']
 
     def reset(self, relaunch=False):
         #print("Reset")
