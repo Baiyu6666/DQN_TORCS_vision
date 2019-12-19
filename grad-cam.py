@@ -83,7 +83,7 @@ class CNN(nn.Module):
         val = self.val1(x)
         val = self.val2(val)
         Q = val + adv - adv.mean()
-        q = torch.mean(Q)
+        q = torch.max(Q)
         q.backward(retain_graph=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -92,33 +92,33 @@ size_filter = (8, 4, 3)
 stride = (4, 2, 1)
 linear_n = (7744, 128, 32)
 
-IMAGE_NUM = 3
-N_ACTIONS = 6
+IMAGE_NUM = 1
+N_ACTIONS = 17
 N_STATE_IMG = IMAGE_NUM*64*64
 N_STATE_LOW = 5
-memory_MAX = 5000
+memory_MAX = 10000
 LEARN_FREQUENCY = 500
 SAVE_FREQUENCY = 1000 #save model and reward list
 BATCH_SIZE = 1
-method = 'Data_generate'
+method = 'PDD'
 model = CNN(n_kernel, size_filter, stride, linear_n, IMAGE_NUM, N_STATE_LOW, N_ACTIONS).to(device)
 model.load_state_dict(torch.load
                               ('data/' + method + '/eval_net_CNN.pkl'))
 
-memory = np.loadtxt('data/memory/cnn.csv',  delimiter=',')
+memory = np.loadtxt('data/memory/test.csv',  delimiter=',')
 
-img1 = cv2.imread('figure/cnn/310.png')
-img2 = cv2.imread('figure/cnn/20.png')
-img3 = cv2.imread('figure/cnn/353.png')
-img4 = cv2.imread('figure/cnn/435.png')
-step = [308, 353,351,355,430]
-png_list = [img1, img3, img3,img3, img4]
+img1 = cv2.imread('figure/50.png')
+img2 = cv2.imread('figure/120.png')
+img3 = cv2.imread('figure/226.png')
+# img4 = cv2.imread('figure/cnn/435.png')
+step = [223, 226, 229]
+png_list = [img3, img3, img3]
 
 
 for i, png in zip(step, png_list):
     b = memory[[i], :]
     b_s_img = torch.FloatTensor(b[:, :N_STATE_IMG]).reshape(BATCH_SIZE, IMAGE_NUM, 64, 64).to(device)
-    b_s_low = torch.FloatTensor(b[:, N_STATE_IMG:N_STATE_IMG + N_STATE_LOW]).to(device)
+    b_s_low = torch.FloatTensor(b[:, N_STATE_IMG:N_STATE_IMG + N_STATE_LOW]).to(device) * 0
     b_s_img.requires_grad = True
     model.zero_grad()
     model.forward(b_s_img, b_s_low)
@@ -132,30 +132,26 @@ for i, png in zip(step, png_list):
         for j in range(w.shape[0]):
             heat += w[j]*layer[j]
     else:
-        heat = np.abs(b_s_img.grad[0, 0].cpu().detach().numpy())\
-               +np.abs(b_s_img.grad[0, 1].cpu().detach().numpy())\
-                +np.abs(b_s_img.grad[0, 2].cpu().detach().numpy())
-
+        heat = np.abs(b_s_img.grad[0, 0].cpu().detach().numpy())
 
     img = b_s_img[0, 0, :, :].cpu().detach().numpy()
-    # #heat[heat<0.04]=0
-    # # plt.figure()
-    # # plt.imshow(heat)
-    # # plt.figure()
-    # # plt.imshow(img,cmap=plt.cm.gray)
-    # plt.figure(i)
-    #
-    # plt.imshow(img+cv2.resize(heat, (64, 64))*10)
+    heat[heat<0.04]=0
+    plt.figure()
+    plt.imshow(heat)
+    plt.figure()
+    plt.imshow(img,cmap=plt.cm.gray)
+    plt.figure(i)
+
+    #plt.imshow(img+cv2.resize(heat, (64, 64))*10)
 
     heat /= np.max(heat)
-    # cv2.imshow(str(i) + 'heat_o', np.uint8(255 * heat))
+    #cv2.imshow(str(i) + 'heat_o', np.uint8(255 * heat))
     heat = cv2.resize(heat, (png.shape[1], png.shape[0]))
     heat = np.uint8(255 * heat)
     heat = cv2.applyColorMap(heat, cv2.COLORMAP_JET)
     superimposed_img = heat * 0.3 + png
     superimposed_img /= np.max(superimposed_img)
     superimposed_img = np.uint8(255 * superimposed_img)
-
 
     cv2.imshow(str(i), superimposed_img)
     cv2.imwrite('figure/cnn/str!val'+str(i)+'.png', superimposed_img)

@@ -49,10 +49,11 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'final'
+para = 'delta_action'
 retrain = True
 learn = True
 prioritized = not True
+withSpeed = True
 
 #Function
 data_generate = False
@@ -78,14 +79,14 @@ SAVE_FREQUENCY = 2000
 BATCH_SIZE = 32
 LR = 0.0003
 GAMMA = 0.9
-MAX_EPISODE = 700
+MAX_EPISODE = 550
 MAX_STEP = 1000
 EPSILON = 0.1
 
 #Data
 with_data = not True
 supervised = not True
-N_DATA = 2500 #利用数据的比例大约是30%~50%
+N_DATA = 900 #利用数据的比例大约是30%~50%
 TIME_PREPRO = 200 #1000~5000左右
 lamda = 0.2
 margin = 0.1
@@ -359,7 +360,8 @@ for k in range(1):
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000)) * withSpeed
+
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             if step > MAX_STEP:
@@ -373,6 +375,8 @@ for k in range(1):
             s_img = s_img_.copy()
             s_low = s_low_
             print('time:%.3f' % (time() - time_new))
+
+
     for i in trange(MAX_EPISODE):
         if dqn.memory_counter >= memory_MAX:
             dqn.adjust_learning_rate(dqn.optimizer, i)
@@ -385,7 +389,7 @@ for k in range(1):
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
 
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm)))
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000)))
         img = preprocess(s)
 
         s_img[0] = img
@@ -427,7 +431,7 @@ for k in range(1):
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
 
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm)) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             #print('model time:%.3f' % (time() - time_new))
@@ -507,16 +511,16 @@ for k in range(1):
             s_img = s_img_.copy()
             s_low = s_low_
             #print('time:%.3f' %(time()-time_new))
-            #print('step:%s  reward:%.2f  momery:%s  time:%.3f' % (step, r, dqn.memory_counter, time()-time_new))
+            print('step:%s  reward:%.2f  momery:%s  time:%.3f' % (step, r, dqn.memory_counter, time()-time_new))
             #print(step_loop.set_description('step:%s  reward:%.2f' % (step, r))
             #print("data", dqn.memory_counter, 'reward', r)
 
     dqn.save_record('r', r_list)
-    dqn.save_record('ra', ra_list)
+    #dqn.save_record('ra', ra_list)
     dqn.save_record('dist', dist_list)
     dqn.save_record('angle', angle_list)
     dqn.save_record('track', track_list)
-    dqn.save_record('ratio', r_list)
+    #dqn.save_record('ratio', r_list)
 
 
     # if supervised:

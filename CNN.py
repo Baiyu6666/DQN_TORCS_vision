@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+noSpeed = True
 
 def weights_init(m):
     classname = m.__class__.__name__
