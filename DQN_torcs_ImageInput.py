@@ -19,6 +19,8 @@ from time import time, sleep
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ACTION = (
+            np.array([-0.75, 0.0, 0]),
+            np.array([-0.5, 0.0, 0]),
             np.array([0.25, 0.0, 0]),
             np.array([0.20, 0.0, 0]),
             np.array([0.15, 0.0, 0]),
@@ -35,7 +37,9 @@ ACTION = (
             np.array([-0.10, 0.0, 0]),
             np.array([-0.15, 0.0, 0]),
             np.array([-0.20, 0.0, 0]),
-            np.array([-0.25, 0.0, 0])
+            np.array([-0.25, 0.0, 0]),
+            np.array([-0.5, 0.0, 0]),
+            np.array([-0.75, 0.0, 0]),
             )
 
 # method_set = (('DDQN', True, False, False, False, False),
@@ -69,7 +73,7 @@ online_draw = False
 IMAGE_NUM = 1
 N_ACTIONS = len(ACTION)
 N_STATE_IMG = IMAGE_NUM*64*64
-N_STATE_LOW = 5
+N_STATE_LOW = 6
 
 #hyper-para
 memory_MAX = 10000
@@ -338,18 +342,19 @@ for k in range(1):
     while (dqn.memory_counter < memory_learn) and learn:
         s_img = np.zeros((IMAGE_NUM, 64, 64))
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
+        a_drive = [0, 0, 0]
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm)))
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, a_drive[0]))) * withSpeed
         img = preprocess(s)
 
         s_img[0] = img
         s_img_[0] = img
 
         transitions = []
-        a_drive = [0, 0, 0]
         a = 8
         for step in range(9999):
             time_new = time()
+
             #manul, online_draw, a, record = console.keyboard(a, manul, online_draw)
             if len(s_img) >= IMAGE_NUM:
                 if not manul:
@@ -357,10 +362,11 @@ for k in range(1):
                 else:
                     dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
 
-            a_drive = ACTION[a]
+            a_drive = ACTION[a] + a_drive
+            a_drive = np.clip(a_drive, -1, 1).tolist()
             s_, r, done = env.step(a_drive)
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000)) * withSpeed
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, a_drive[0])) * withSpeed
 
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
@@ -387,9 +393,9 @@ for k in range(1):
 
         s_img = np.zeros((IMAGE_NUM, 64, 64))
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
-
+        a_drive = [0, 0, 0]
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000)))
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000,  a_drive[0]))) * withSpeed
         img = preprocess(s)
 
         s_img[0] = img
@@ -401,7 +407,7 @@ for k in range(1):
         angle_sum = 0
 
         transitions = []
-        a_drive = [0, 0, 0]
+
         a = 8
         time_now = time()
         time_new = time()
@@ -428,10 +434,11 @@ for k in range(1):
 
             # a_delta = min(abs(ACTION[a][0] - a_drive[0]), 0.08) * (ACTION[a][0] > a_drive[0])
             # a_drive = a_drive + a_delta
-            a_drive = ACTION[a]
+            a_drive = ACTION[a] + a_drive
+            a_drive = np.clip([1, -1, 1]).tolist()
             s_, r, done = env.step(a_drive)
 
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm)) * withSpeed
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000,  a_drive[0])) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             #print('model time:%.3f' % (time() - time_new))
