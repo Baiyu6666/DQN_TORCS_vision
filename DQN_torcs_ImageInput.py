@@ -49,7 +49,7 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'delta_action'
+para = 'reward_punish'
 retrain = True
 learn = True
 prioritized = not True
@@ -339,7 +339,7 @@ for k in range(1):
         s_img = np.zeros((IMAGE_NUM, 64, 64))
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm)))
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/ 5000)))*withSpeed
         img = preprocess(s)
 
         s_img[0] = img
@@ -389,7 +389,7 @@ for k in range(1):
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
 
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000)))
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000))) *withSpeed
         img = preprocess(s)
 
         s_img[0] = img
@@ -431,7 +431,7 @@ for k in range(1):
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
 
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm)) * withSpeed
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000)) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             #print('model time:%.3f' % (time() - time_new))
