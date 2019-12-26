@@ -50,7 +50,15 @@ ACTION = (
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
 para = 'final'
+
+
+
+
+
+
 retrain = True
+
+
 learn = True
 prioritized = not True
 
