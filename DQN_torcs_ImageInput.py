@@ -49,18 +49,11 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'final'
-
-
-
-
-
-
+para = 'reward_punish'
 retrain = True
-
-
 learn = True
 prioritized = not True
+withSpeed = not True
 
 #Function
 data_generate = False
@@ -76,7 +69,7 @@ online_draw = False
 IMAGE_NUM = 1
 N_ACTIONS = len(ACTION)
 N_STATE_IMG = IMAGE_NUM*64*64
-N_STATE_LOW = 5
+N_STATE_LOW = 6
 
 #hyper-para
 memory_MAX = 10000
@@ -85,16 +78,15 @@ LEARN_FREQUENCY = 500
 SAVE_FREQUENCY = 2000
 BATCH_SIZE = 32
 LR = 0.0003
-LR_delta = 1.7 * 10**(-7)
 GAMMA = 0.9
-MAX_EPISODE = 700
+MAX_EPISODE = 550
 MAX_STEP = 1000
 EPSILON = 0.1
 
 #Data
 with_data = not True
 supervised = not True
-N_DATA = 2500 #利用数据的比例大约是30%~50%
+N_DATA = 900 #利用数据的比例大约是30%~50%
 TIME_PREPRO = 200 #1000~5000左右
 lamda = 0.2
 margin = 0.1
@@ -135,7 +127,7 @@ class DQN():
 
     def adjust_learning_rate(self, optimizer, epoch):
         """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-        lr = LR - LR_delta * epoch
+        lr = 0.00025 - 1.7 * 10**(-7) * epoch
         lr *= 2
         if self.learn_counter % 2 == 0 and online_draw:
             vis.line(X=torch.Tensor([epoch]), Y=torch.Tensor([lr]), win='lr',
@@ -202,7 +194,7 @@ class DQN():
             rate = b_isdemo.sum() / BATCH_SIZE
             if self.learn_counter % 2 == 0 and online_draw and with_data:
                 vis.line(X=torch.Tensor([self.learn_counter]), Y=rate.reshape(1, 1), win='Data use rate',
-                         update='append', opts={'title': 'ratio'})
+                         update='append', opts={'title': 'delta_a'})
 
             IS = torch.Tensor(IS).to(device)
             b_isdemo = torch.Tensor(b_isdemo).to(device)
@@ -210,6 +202,7 @@ class DQN():
         else:
             sample = np.random.choice(min(self.memory_counter, memory_MAX)*(1-prepro)+N_DATA*prepro, BATCH_SIZE)
             b = self.memory[sample, :]
+
 
         b_s_img = torch.FloatTensor(b[:, :N_STATE_IMG]).reshape(BATCH_SIZE, IMAGE_NUM, 64, 64).to(device)
         b_s_low = torch.FloatTensor(b[:, N_STATE_IMG: N_STATE_IMG + N_STATE_LOW]).to(device)
@@ -265,7 +258,7 @@ class DQN():
         #     return loss_sup.data[0], loss_td.data[0]
         # else:
         #     return loss.data[0]
-        return rate
+        return loss
 
     def save_memory(self):
         env.end()
@@ -327,7 +320,7 @@ for k in range(1):
     dist_list = []
     angle_list = []
     loss_list = []
-    ratio_list = []
+    delta_a_list = []
     track_list = []
     loss_sup_list = []
     loss_td_list = []
@@ -346,15 +339,18 @@ for k in range(1):
         s_img = np.zeros((IMAGE_NUM, 64, 64))
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm)))
+        a_drive = [0, 0, 0]
+        a = 8
+        a_o = 8
+
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, ACTION[a_o][0])))*withSpeed
         img = preprocess(s)
 
         s_img[0] = img
         s_img_[0] = img
 
         transitions = []
-        a_drive = [0, 0, 0]
-        a = 8
+
         for step in range(9999):
             time_new = time()
             #manul, online_draw, a, record = console.keyboard(a, manul, online_draw)
@@ -363,11 +359,13 @@ for k in range(1):
                     a = dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
                 else:
                     dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
-
+            
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
+            r = r - abs(ACTION[a][0]-ACTION[a_o][0])*0.7
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
+
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             if step > MAX_STEP:
@@ -380,7 +378,10 @@ for k in range(1):
 
             s_img = s_img_.copy()
             s_low = s_low_
+            a_o = a
             print('time:%.3f' % (time() - time_new))
+
+
     for i in trange(MAX_EPISODE):
         if dqn.memory_counter >= memory_MAX:
             dqn.adjust_learning_rate(dqn.optimizer, i)
@@ -393,20 +394,24 @@ for k in range(1):
         s_img_ = np.zeros((IMAGE_NUM, 64, 64))
 
         s = env.reset()
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm)))
+        a_drive = [0, 0, 0]
+        a = 8
+        a_o = 8
+
+
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, ACTION[a_o][0]))) *withSpeed
         img = preprocess(s)
 
         s_img[0] = img
         s_img_[0] = img
 
         r_sum = 0
-        ratio_sum = 0
+        delta_a_sum = 0
         track_sum = 0
         angle_sum = 0
 
         transitions = []
-        a_drive = [0, 0, 0]
-        a = 8
+
         time_now = time()
         time_new = time()
         for step in range(9999):
@@ -434,8 +439,9 @@ for k in range(1):
             # a_drive = a_drive + a_delta
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
-
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm))
+            delta_a_sum += abs(ACTION[a][0] - ACTION[a_o][0])
+            r = r - abs(ACTION[a][0] - ACTION[a_o][0]) * 0.7
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             #print('model time:%.3f' % (time() - time_new))
@@ -459,8 +465,8 @@ for k in range(1):
                 dqn.save_memory()
 
             if learn:
-                ratio = dqn.learn()
-                ratio_sum += ratio
+                dqn.learn()
+
 
                 # if supervised:
                 #     loss_sup, loss_td = dqn.learn()
@@ -494,7 +500,7 @@ for k in range(1):
                 angle_list.append(angle_sum/step)
                 dist_list.append(s_.distRaced)
                 track_list.append(track_sum/step)
-                ratio_list.append(ratio_sum/step)
+                delta_a_list.append(delta_a_sum/step)
 
                 if a_record:
                     np.savetxt('data/memory/a_list.csv', np.array(a_list), delimiter=',')
@@ -511,20 +517,23 @@ for k in range(1):
                 if save_model_flag == True:
                     dqn.save_model()
                 break
-            #sleep(0.1)
+
             s_img = s_img_.copy()
             s_low = s_low_
+            print(
+                'step:%s  reward:%.2f  momery:%s  time:%.3f a:%.3f' % (step, r, dqn.memory_counter, time() - time_new, ACTION[a][0] - ACTION[a_o][0]))
+            a_o = a
             #print('time:%.3f' %(time()-time_new))
-            #print('step:%s  reward:%.2f  momery:%s  time:%.3f' % (step, r, dqn.memory_counter, time()-time_new))
+            #print('step:%s  reward:%.2f  momery:%s  time:%.3f a:%s' % (step, r, dqn.memory_counter, time()-time_new, a))
             #print(step_loop.set_description('step:%s  reward:%.2f' % (step, r))
             #print("data", dqn.memory_counter, 'reward', r)
 
     dqn.save_record('r', r_list)
-    dqn.save_record('ra', ra_list)
+    #dqn.save_record('ra', ra_list)
     dqn.save_record('dist', dist_list)
     dqn.save_record('angle', angle_list)
     dqn.save_record('track', track_list)
-    dqn.save_record('ratio', r_list)
+    dqn.save_record('delta_a', r_list)
 
 
     # if supervised:
