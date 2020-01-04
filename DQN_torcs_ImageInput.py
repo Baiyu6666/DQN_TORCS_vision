@@ -49,7 +49,7 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'reward_punish'
+para = 'reward_punish400'
 retrain = True
 learn = True
 prioritized = not True
@@ -79,8 +79,8 @@ SAVE_FREQUENCY = 2000
 BATCH_SIZE = 32
 LR = 0.0003
 GAMMA = 0.9
-MAX_EPISODE = 550
-MAX_STEP = 1000
+MAX_EPISODE = 400
+MAX_STEP = 500
 EPSILON = 0.1
 
 #Data
@@ -362,7 +362,7 @@ for k in range(1):
             
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
-            r = r - abs(ACTION[a][0]-ACTION[a_o][0])*0.7
+            r = r - abs(ACTION[a][0]-ACTION[a_o][0])*1.2
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
 
@@ -440,7 +440,8 @@ for k in range(1):
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
             delta_a_sum += abs(ACTION[a][0] - ACTION[a_o][0])
-            r = r - abs(ACTION[a][0] - ACTION[a_o][0]) * 0.7
+            r\
+                = r - abs(ACTION[a][0] - ACTION[a_o][0]) * 1.2
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
@@ -520,8 +521,8 @@ for k in range(1):
 
             s_img = s_img_.copy()
             s_low = s_low_
-            print(
-                'step:%s  reward:%.2f  momery:%s  time:%.3f a:%.3f' % (step, r, dqn.memory_counter, time() - time_new, ACTION[a][0] - ACTION[a_o][0]))
+            # print(
+            #     'step:%s  reward:%.2f  momery:%s  time:%.3f a:%.3f' % (step, r, dqn.memory_counter, time() - time_new, ACTION[a][0] - ACTION[a_o][0]))
             a_o = a
             #print('time:%.3f' %(time()-time_new))
             #print('step:%s  reward:%.2f  momery:%s  time:%.3f a:%s' % (step, r, dqn.memory_counter, time()-time_new, a))
@@ -533,7 +534,7 @@ for k in range(1):
     dqn.save_record('dist', dist_list)
     dqn.save_record('angle', angle_list)
     dqn.save_record('track', track_list)
-    dqn.save_record('delta_a', r_list)
+    dqn.save_record('delta_a', delta_a_list)
 
 
     # if supervised:
