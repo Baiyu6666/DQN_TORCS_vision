@@ -32,17 +32,17 @@ class CNN(nn.Module):
         self.conv3 = nn.Sequential(nn.Conv2d(n_kernel[1], n_kernel[2], size_filter[2], stride[2], 2),
                                    nn.ReLU()
                                    )
-        self.adv1 = nn.Sequential(nn.Linear(linear_n[0] + N_STATE_LOW, linear_n[1]),
+        self.adv1 = nn.Sequential(nn.Linear(linear_n[0] + N_STATE_LOW, linear_n[1]*2),
                                   nn.ReLU())
-        self.adv2 = nn.Sequential(nn.Linear(linear_n[1], linear_n[2]),
+        self.adv2 = nn.Sequential(nn.Linear(linear_n[1]*2, linear_n[2]*2),
                    nn.ReLU(),
-                   nn.Linear(linear_n[2], N_ACTIONS))
+                   nn.Linear(linear_n[2]*2, N_ACTIONS))
 
-        self.val1 = nn.Sequential(nn.Linear(linear_n[0] + N_STATE_LOW, linear_n[1]),
-                                  nn.ReLU())
-        self.val2 = nn.Sequential(nn.Linear(linear_n[1], linear_n[2]),
-                   nn.ReLU(),
-                   nn.Linear(linear_n[2], 1))
+        # self.val1 = nn.Sequential(nn.Linear(linear_n[0] + N_STATE_LOW, linear_n[1]),
+        #                           nn.ReLU())
+        # self.val2 = nn.Sequential(nn.Linear(linear_n[1], linear_n[2]),
+        #            nn.ReLU(),
+        #            nn.Linear(linear_n[2], 1))
 
         self.apply(weights_init)
 
@@ -59,6 +59,6 @@ class CNN(nn.Module):
         adv = self.adv1(x)
         adv = self.adv2(adv)
 
-        val = self.val1(x)
-        val = self.val2(val)
-        return val + adv - adv.mean()
+        # val = self.val1(x)
+        # val = self.val2(val)
+        return adv

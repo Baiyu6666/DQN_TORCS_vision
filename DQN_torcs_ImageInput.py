@@ -49,11 +49,11 @@ ACTION = (
 #               )
 # method, learn, data_generate, with_data, prioritized, supervised = method_set[4]
 method = 'PDD'
-para = 'reward_punish400'
+para = 'nodoubledeuling'
 retrain = True
 learn = True
 prioritized = not True
-withSpeed = not True
+withSpeed = True
 
 #Function
 data_generate = False
@@ -79,7 +79,7 @@ SAVE_FREQUENCY = 2000
 BATCH_SIZE = 32
 LR = 0.0003
 GAMMA = 0.9
-MAX_EPISODE = 400
+MAX_EPISODE = 500
 MAX_STEP = 500
 EPSILON = 0.1
 
@@ -213,7 +213,8 @@ class DQN():
 
         q_evals = self.eval_net.forward(b_s_img, b_s_low)
         q_eval = q_evals.gather(1, b_a)
-        eval_value = self.eval_net.forward(b_s_img_, b_s_low_).detach()
+        eval_value = self.tar_net.forward(b_s_img_, b_s_low_).detach()
+
         a_ = torch.max(eval_value, -1)[1].data.reshape(-1, 1)
         tar_value = self.tar_net(b_s_img_, b_s_low_).detach().gather(1, a_)
         q_tar = b_r + GAMMA * tar_value
@@ -362,7 +363,7 @@ for k in range(1):
             
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
-            r = r - abs(ACTION[a][0]-ACTION[a_o][0])*1.2
+            r = r
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
 
@@ -440,8 +441,7 @@ for k in range(1):
             a_drive = ACTION[a]
             s_, r, done = env.step(a_drive)
             delta_a_sum += abs(ACTION[a][0] - ACTION[a_o][0])
-            r\
-                = r - abs(ACTION[a][0] - ACTION[a_o][0]) * 1.2
+
             s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
