@@ -343,7 +343,7 @@ for k in range(1):
         a = 8
         a_o = 8
 
-        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, ACTION[a_o][0])))*withSpeed
+        s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, 0)))*withSpeed
         img = preprocess(s)
 
         s_img[0] = img
@@ -359,12 +359,12 @@ for k in range(1):
                     a = dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
                 else:
                     dqn.choose_action(s_img[np.newaxis], s_low[np.newaxis])
-            
-            a_drive = ACTION[a]
+            a_drive[0] += ACTION[a][0]
+            a_drive[0] = np.clip(a_drive[0], -1, 1)
             s_, r, done = env.step(a_drive)
-            r = r - abs(ACTION[a][0]-ACTION[a_o][0])*1.2
+            r = r - abs(ACTION[a][0])*1.2
             print('OBSERVE step:%s  reward:%.2f  momery:%s' %(step, r, dqn.memory_counter))
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, a_drive[0])) * withSpeed
 
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
@@ -397,7 +397,6 @@ for k in range(1):
         a_drive = [0, 0, 0]
         a = 8
         a_o = 8
-
 
         s_low = (np.hstack((s.wheelSpinVel / 100.0, s.rpm/5000, ACTION[a_o][0]))) *withSpeed
         img = preprocess(s)
@@ -437,12 +436,12 @@ for k in range(1):
 
             # a_delta = min(abs(ACTION[a][0] - a_drive[0]), 0.08) * (ACTION[a][0] > a_drive[0])
             # a_drive = a_drive + a_delta
-            a_drive = ACTION[a]
+            a_drive += ACTION[a]
+            a_drive[0] = np.clip(a_drive[0], -1, 1)
             s_, r, done = env.step(a_drive)
-            delta_a_sum += abs(ACTION[a][0] - ACTION[a_o][0])
-            r\
-                = r - abs(ACTION[a][0] - ACTION[a_o][0]) * 1.2
-            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, ACTION[a][0])) * withSpeed
+            delta_a_sum += abs(ACTION[a][0])
+            r = r - abs(ACTION[a][0]) * 1.2
+            s_low_ = np.hstack((s_.wheelSpinVel / 100.0, s_.rpm/5000, a_drive[0])) * withSpeed
             img_ = preprocess(s_)
             s_img_ = up_state(s_img_, img_, step, IMAGE_NUM)
             #print('model time:%.3f' % (time() - time_new))
